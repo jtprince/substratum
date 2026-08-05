@@ -1,0 +1,1 @@
+"""Sound gallery generation."""

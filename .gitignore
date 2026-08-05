@@ -216,3 +216,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Runtime artifacts (reproducible from scripts)
+/output/
+/docs/figures/
+

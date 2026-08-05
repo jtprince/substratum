@@ -1,0 +1,55 @@
+[project]
+name = "substratum"
+version = "0.1.0"
+description = "Explore waveforms with programming - Deep808Lab bass synthesizer"
+readme = "README.md"
+license = {text = "CC0-1.0"}
+requires-python = ">=3.12"
+dependencies = [
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "soundfile>=0.12",
+    "typer>=0.9",
+    "rich>=13.0",
+    "matplotlib>=3.7",
+    "pydub>=0.25",
+]
+
+[project.scripts]
+bass = "substratum.cli.bass:app"
+
+[project.optional-dependencies]
+dev = ["pytest>=7.4", "ruff>=0.1", "mypy>=1.0"]
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["substratum*"]
+exclude = ["output*", "docs*", "tests*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP", "B", "C4", "SIM", "T20"]
+ignore = ["S101", "T201"]
+
+[tool.ruff.lint.per-file-ignores]
+"substratum/cli/bass.py" = ["B008"]
+"substratum/gallery/generate.py" = ["E501"]
+"tests/*" = ["E501"]
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
