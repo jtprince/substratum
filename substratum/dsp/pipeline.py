@@ -16,7 +16,7 @@ import numpy as np
 
 from substratum.dsp.dynamics import lookahead_limiter, soft_clip
 from substratum.dsp.filters import dc_blocker, one_pole_lowpass
-from substratum.dsp.saturation import downsample, oversample, tanh_saturate
+from substratum.dsp.saturation import curve_saturate, downsample, oversample
 from substratum.utils.math import normalize
 
 
@@ -29,11 +29,12 @@ def apply_master_chain(
     limiter_threshold: float = 0.92,
     makeup_db: float = 0.0,
     soft_clip_amount: float = 0.4,
+    curve: float = 0.0,
 ) -> np.ndarray:
     """Run the full post-processing chain on a generated voice."""
     sig = signal
     sig = oversample(sig, oversample_factor)
-    sig = tanh_saturate(sig, drive)
+    sig = curve_saturate(sig, drive, curve)
     sig = downsample(sig, oversample_factor)
     sig = one_pole_lowpass(sig, lowpass_hz, sample_rate)
     sig = soft_clip(sig, amount=soft_clip_amount)

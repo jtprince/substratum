@@ -85,6 +85,16 @@ def gallery(
     console.print(f"Gallery at [bold]{index}[/bold]")
 
 
+@app.command("gui")
+def gui(
+    samples_dir: Path | None = typer.Option(None, help="Directory for saved sounds."),
+) -> None:
+    """Launch the interactive Textual GUI."""
+    from substratum.gui.app import BassGui
+
+    BassGui(samples_dir=samples_dir).run()
+
+
 @app.command("presets")
 def presets() -> None:
     """List available presets and their settings."""

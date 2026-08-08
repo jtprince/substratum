@@ -4,6 +4,7 @@ Reproducible: run ``uv run python docs/generate_figures.py`` and every image
 referenced by the theory document is regenerated from the actual DSP code
 into ``docs/figures/`` as PNG + SVG.
 """
+
 from __future__ import annotations
 
 from pathlib import Path

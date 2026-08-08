@@ -18,6 +18,30 @@ bass --preset velvet --output velvet.wav
 bass presets   # list presets and their settings
 ```
 
+## GUI
+
+```bash
+bass gui   # interactive Textual UI (15 sliders, ABC pattern, piano roll,
+           # looping playback, save/load as name.mp3 + name.json in
+           # ~/Music/substratum/bass/samples)
+```
+
+Requires an audio device for playback (sounddevice). MP3 save needs `ffmpeg`.
+
+The pattern box takes simplified ABC: `C1` is a one-beat sub C (MIDI 24),
+`C'`/`C,` raise/lower an octave, `#`/`b` add accidentals, a trailing number
+sets the length in beats (`C2` = half note, `E1.5` = dotted), `z`/`r` are
+rests, and `|` marks bar lines. Examples: `C1 E1 G1`, `F#1 D1/2 E2`,
+`C2 z1 E1`.
+
+The loop is tempo-locked to the BPM slider, so every hit lands on the beat
+grid. The waveform panel shows a 12-line oscilloscope with half-block
+vertical resolution (24 amplitude steps) plus sub/warmth/snap sparklines;
+with an empty or invalid pattern it falls back to a single note so a
+waveform is always visible. Press `v` (or the Plot button) to push a
+matplotlib decomposition of the loop — ADSR envelope, sub, warmth, snap and
+the mastered mix — into the terminal via `kitty +kitten icat` (kitty only).
+
 ## Explore
 
 ```bash

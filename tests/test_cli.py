@@ -24,3 +24,9 @@ def test_presets_command_lists_all(tmp_path):
 def test_unknown_subcommand_fails():
     result = runner.invoke(app, ["frobnicate"])
     assert result.exit_code != 0
+
+
+def test_gui_command_has_help():
+    result = runner.invoke(app, ["gui", "--help"])
+    assert result.exit_code == 0
+    assert "Textual GUI" in result.stdout

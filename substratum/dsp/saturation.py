@@ -45,6 +45,23 @@ def atan_saturate(signal: np.ndarray, drive: float = 0.5) -> np.ndarray:
     return np.arctan(gain * signal) * (2.0 / np.pi)
 
 
+def curve_saturate(signal: np.ndarray, drive: float = 0.5, curve: float = 0.0) -> np.ndarray:
+    """Saturate with a smooth tanh <-> atan blend.
+
+    ``curve`` in [0, 1]: 0 is tanh (punchier), 1 is atan (softer, rounder).
+    Both curves share the same pre-gain so the blend stays stable at any
+    drive level.
+    """
+    drive = float(np.clip(drive, 0.0, 1.0))
+    curve = float(np.clip(curve, 0.0, 1.0))
+    if drive <= 0.0:
+        return signal
+    gain = 1.0 + 8.0 * drive
+    tanh_out = np.tanh(gain * signal)
+    atan_out = np.arctan(gain * signal) * (2.0 / np.pi)
+    return (1.0 - curve) * tanh_out + curve * atan_out
+
+
 def saturate(
     signal: np.ndarray,
     drive: float = 0.5,
