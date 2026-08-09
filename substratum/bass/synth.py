@@ -72,6 +72,10 @@ class BassParams:
     makeup_db: float = 0.0
     transpose: float = 0.0
 
+    # Industrial distortion: wavefolder foldback and bit-crush.
+    distortion: float = 0.0
+    crush: float = 0.0
+
     # Rendering.
     sample_rate: int = SAMPLE_RATE
     oversample_factor: int = 4
@@ -101,6 +105,8 @@ class BassParams:
             curve=float(np.clip(self.curve, 0.0, 1.0)),
             glide=float(np.clip(self.glide, 0.0, 1.0)),
             makeup_db=float(np.clip(self.makeup_db, 0.0, MAKEUP_MAX)),
+            distortion=float(np.clip(self.distortion, 0.0, 1.0)),
+            crush=float(np.clip(self.crush, 0.0, 1.0)),
             transpose=float(np.clip(self.transpose, -24.0, 24.0)),
         )
 
@@ -292,6 +298,8 @@ def _master_channel(
         limiter_threshold=limiter_threshold,
         makeup_db=limiter_makeup_db,
         curve=params.curve,
+        distortion=params.distortion,
+        crush=params.crush,
     )
 
 

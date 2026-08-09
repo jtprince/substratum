@@ -45,7 +45,7 @@ from substratum.pattern.notation import NotationError, Note, parse_pattern, tota
 
 #: (key, field, label, units, min, max, step, fmt)
 CORE_SLIDERS = [
-    ("pitch", "transpose", "Pitch", "st", -12.0, 12.0, 1.0, "{:.0f}"),
+    ("pitch", "transpose", "Pitch", "st", -12.0, 12.0, 0.1, "{:.1f}"),
     ("punch", "punch", "Punch", "", 0.0, 1.0, 0.01, "{:.2f}"),
     ("drive", "drive", "Drive", "", 0.0, 1.0, 0.01, "{:.2f}"),
     ("warmth", "warmth", "Warmth", "", 0.0, 1.0, 0.01, "{:.2f}"),
@@ -63,6 +63,8 @@ ADVANCED_SLIDERS = [
     ("width", "width", "Width", "", 0.0, 1.0, 0.01, "{:.2f}"),
     ("makeup", "makeup_db", "Limiter", "dB", 0.0, 6.0, 0.1, "{:.1f}"),
     ("curve", "curve", "Curve", "", 0.0, 1.0, 0.01, "{:.2f}"),
+    ("dist", "distortion", "Distortion", "", 0.0, 1.0, 0.01, "{:.2f}"),
+    ("crush", "crush", "Bitcrush", "", 0.0, 1.0, 0.01, "{:.2f}"),
 ]
 
 FIELD_TO_KEY = {field: key for key, field, *_ in CORE_SLIDERS + ADVANCED_SLIDERS}
@@ -78,15 +80,15 @@ Screen { overflow: hidden; }
 #main { height: 1fr; }
 #left { width: 44; border: round $primary; padding: 0 1; }
 #right { width: 1fr; border: round $primary; padding: 0 1; }
-#right ScrollableContainer { height: 1fr; }
+#right ScrollableContainer { height: 1fr; overflow-x: hidden; }
 .banner { text-style: bold; color: $accent; margin-top: 1; }
 #noterr { color: $error; }
 #status { color: $text-muted; }
 #nothelp { color: $text-muted; }
 HoverSlider { height: 1; }
 TextArea { height: 4; border: round $primary; }
-PianoRoll { height: auto; }
-MiniWaveform { height: auto; color: $text; }
+PianoRoll { height: auto; width: auto; }
+MiniWaveform { height: auto; width: auto; color: $text; }
 #savename { width: 1fr; max-width: 24; }
 """
 
@@ -251,6 +253,8 @@ class BassGui(App[None]):
             width=values["width"],
             makeup_db=values["makeup_db"],
             curve=values["curve"],
+            distortion=values["distortion"],
+            crush=values["crush"],
         )
 
     def _set_params(self, p: BassParams) -> None:
@@ -356,7 +360,7 @@ class BassGui(App[None]):
         p.drive = random() * 0.8
         p.warmth = random()
         p.weight = random()
-        p.transpose = float(np.random.randint(-7, 6))
+        p.transpose = round(float(np.random.uniform(-7, 6)), 1)
         p.glide = random() * 0.6
         p.width = random()
         p.curve = random()
@@ -548,6 +552,8 @@ def _as_dict(params: BassParams) -> dict:
         "width": params.width,
         "makeup_db": params.makeup_db,
         "curve": params.curve,
+        "distortion": params.distortion,
+        "crush": params.crush,
     }
 
 

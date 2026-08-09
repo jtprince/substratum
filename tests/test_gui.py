@@ -6,6 +6,18 @@ import pytest
 
 from substratum.gui.app import BassGui
 from substratum.gui.widgets import HoverSlider, MiniWaveform, PianoRoll
+from substratum.pattern.notation import parse_pattern
+
+
+def _has_output_device() -> bool:
+    """True when sounddevice can open a default output stream."""
+    try:
+        import sounddevice as sd
+
+        sd.query_devices(kind="output")
+        return True
+    except Exception:  # noqa: BLE001
+        return False
 
 
 def _run(app: BassGui, body):
@@ -45,6 +57,30 @@ def test_slider_change_schedules_rerender(tmp_path):
     _run(app, body)
 
 
+def test_slider_click_jumps_to_position(tmp_path):
+    from textual import events
+
+    app = BassGui(pattern="C1", samples_dir=tmp_path)
+
+    async def body(app, pilot) -> None:  # noqa: F811
+        slider = app.query_one("#sl-punch", HoverSlider)
+        x0, x1 = slider._bar_x0(), slider._bar_x1()
+        span = x1 - x0
+        assert slider.min <= 0 and slider.max >= 1
+        mid = x0 + span / 2
+        slider.on_mouse_down(events.MouseDown(slider, mid, 0, 0, 0, 1, False, False, False))
+        assert abs(slider.value - 0.5) < 1e-6
+        # A click past the bar clamps to the maximum.
+        slider.on_mouse_down(events.MouseDown(slider, x1 + 20, 0, 0, 0, 1, False, False, False))
+        assert slider.value == slider.max
+        # A click on the label leaves the value untouched.
+        before = slider.value
+        slider.on_mouse_down(events.MouseDown(slider, x0 - 5, 0, 0, 0, 1, False, False, False))
+        assert slider.value == before
+
+    _run(app, body)
+
+
 def test_invalid_pattern_shows_error_and_falls_back(tmp_path):
     app = BassGui(pattern="C1 Q9", samples_dir=tmp_path)
 
@@ -64,6 +100,43 @@ def test_notation_help_text_is_shown(tmp_path):
         assert "C2 z1 E1" in help_text
 
     _run(app, body)
+
+
+def test_waveform_and_roll_grow_to_content_height(tmp_path):
+    # The wave/roll mount with placeholder content (1 line); after the first
+    # render their multi-line bodies must trigger a re-layout, not stay 1 tall.
+    app = BassGui(pattern="C1 E1 G1", samples_dir=tmp_path)
+
+    async def body(app, pilot) -> None:  # noqa: F811
+        await pilot.pause(0.5)
+        wave = app.query_one("#wave")
+        roll = app.query_one("#roll")
+        assert wave.size.height >= 16
+        assert roll.size.height >= 9
+
+    _run(app, body)
+
+
+def test_waveform_does_not_wrap_at_narrow_width(tmp_path):
+    # At a very narrow window the waveform must keep its 16-row shape (clipped
+    # at the panel edge), not wrap into a tall mangled block.
+    app = BassGui(pattern="C1 E1 G1", samples_dir=tmp_path)
+
+    async def body(app, pilot) -> None:  # noqa: F811
+        await pilot.pause(0.5)
+        wave = app.query_one("#wave")
+        assert wave.size.height == 16
+
+    _run_sized(app, body, size=(60, 50))
+
+
+def _run_sized(app: BassGui, body, size):
+    async def main() -> None:
+        async with app.run_test(size=size) as pilot:
+            await pilot.pause()
+            await body(app, pilot)
+
+    asyncio.run(main())
 
 
 def test_plot_without_kitty_does_not_invoke_icat(tmp_path, monkeypatch):
@@ -142,15 +215,20 @@ def test_save_and_load_via_app(tmp_path):
     _run(app, body)
 
 
-@pytest.mark.skip(reason="needs an audio device")
+@pytest.mark.skipif(not _has_output_device(), reason="needs an audio device")
 def test_play_toggle_does_not_crash(tmp_path):
     app = BassGui(pattern="C1", samples_dir=tmp_path)
 
     async def body(app, pilot) -> None:  # noqa: F811
         app.action_toggle_play()
-        await pilot.pause()
+        await pilot.pause(0.2)
+        assert app.playing
         app.action_toggle_play()
         await pilot.pause()
+        assert not app.playing
+        app.action_toggle_play()
+        await pilot.pause(0.2)
+        app.exit()  # must not deadlock in on_unmount while the stream is live
 
     _run(app, body)
 
@@ -170,6 +248,38 @@ def test_fill_wave_half_block_resolution():
     assert "█" in lines[0] and "█" in lines[-1]
     # Half-block chars appear (vertical resolution beyond 8 bands).
     assert any(c in "▀▄" for line in lines for c in line)
+
+
+def test_piano_roll_marks_detuned_notes():
+    roll = PianoRoll()
+    roll.set_pattern(parse_pattern("C1"), bpm=70.0, transpose=0.0)
+    plain = roll.render().plain
+    assert "■" in plain and "▲" not in plain and "▼" not in plain
+
+    roll.set_pattern(parse_pattern("C1"), bpm=70.0, transpose=0.5)
+    plain = roll.render().plain
+    assert "▲" in plain and "■" not in plain
+
+    roll.set_pattern(parse_pattern("C1"), bpm=70.0, transpose=-0.5)
+    plain = roll.render().plain
+    assert "▼" in plain and "■" not in plain
+
+    roll.set_pattern(parse_pattern("C1 C2"), bpm=70.0, transpose=0.25)
+    assert "▲" in roll.render().plain
+
+
+def test_fractional_pitch_slider_renders_and_plays(tmp_path):
+    app = BassGui(pattern="C1 E1 G1", samples_dir=tmp_path)
+
+    async def body(app, pilot) -> None:  # noqa: F811
+        slider = app.query_one("#sl-pitch", HoverSlider)
+        slider.set_value(0.5, notify=True)
+        await pilot.pause(0.4)
+        assert slider.value == 0.5
+        assert app.audio is not None and len(app.audio) > 0
+        assert "▲" in app.query_one("#roll", PianoRoll).render().plain
+
+    _run(app, body)
 
 
 def test_loop_player_loops_and_crossfades():
@@ -214,3 +324,43 @@ def test_loop_player_loops_and_crossfades():
     assert np.allclose(blended, ideal, atol=1e-6)
 
     player.close()
+
+
+def _run_player_subprocess(body: str) -> str:
+    """Run a player exercise in a subprocess (a close/stop deadlock would
+    hang the subprocess and be killed by the timeout instead of pytest)."""
+    import subprocess
+    import sys
+
+    code = (
+        "import time\n"
+        "import numpy as np\n"
+        "from substratum.gui.player import LoopPlayer\n"
+        "p = LoopPlayer(48000)\n"
+        "sr = 48000\n"
+        f"a = np.sin(2 * np.pi * 40 * np.arange(sr) / sr)\n"
+        f"{body}\n"
+        "print('ok')\n"
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", code],
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+    assert result.returncode == 0, result.stderr
+    assert "ok" in result.stdout
+    return result.stdout
+
+
+@pytest.mark.skipif(not _has_output_device(), reason="needs an audio device")
+def test_loop_player_close_while_playing_does_not_deadlock():
+    _run_player_subprocess("p.update(a); p.start(); time.sleep(0.2); p.close()")
+
+
+@pytest.mark.skipif(not _has_output_device(), reason="needs an audio device")
+def test_loop_player_stop_and_restart_do_not_deadlock():
+    _run_player_subprocess(
+        "p.update(a); p.start(); time.sleep(0.15); p.stop(); "
+        "time.sleep(0.05); p.start(); time.sleep(0.15); p.close()"
+    )

@@ -30,7 +30,9 @@ def main(
     drive: float = typer.Option(0.35, min=0.0, max=1.0, help="Analog saturation amount."),
     warmth: float = typer.Option(0.25, min=0.0, max=1.0, help="Harmonic warmth."),
     weight: float = typer.Option(0.5, min=0.0, max=1.0, help="Macro knob: physical size."),
-    preset: str | None = typer.Option(None, help="Preset name, overrides the five knobs."),
+    dist: float = typer.Option(0.0, min=0.0, max=1.0, help="Industrial wavefolder distortion."),
+    crush: float = typer.Option(0.0, min=0.0, max=1.0, help="Industrial bit-crush amount."),
+    preset: str | None = typer.Option(None, help="Preset name, overrides the knobs."),
     duration: float = typer.Option(2.0, help="Note duration in seconds."),
     output: Path = typer.Option("demo.wav", help="Output WAV path."),
 ) -> None:
@@ -41,7 +43,15 @@ def main(
     if preset:
         params = get_preset(preset)
     else:
-        params = BassParams(freq=freq, punch=punch, drive=drive, warmth=warmth, weight=weight)
+        params = BassParams(
+            freq=freq,
+            punch=punch,
+            drive=drive,
+            warmth=warmth,
+            weight=weight,
+            distortion=dist,
+            crush=crush,
+        )
     params.duration = duration
 
     audio = render(params)

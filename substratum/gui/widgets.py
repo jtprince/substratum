@@ -8,16 +8,23 @@
 
 from __future__ import annotations
 
+from typing import cast
+
 import numpy as np
 from rich.text import Text
 from textual import events
 from textual.message import Message
+from textual.widget import Widget
 from textual.widgets import Static
 
 from substratum.pattern.arrange import PatternParts
 from substratum.pattern.notation import Note, note_label
 
 _BLOCK_CHARS = " ▁▂▃▄▅▆▇█"
+
+#: Width of the label column and the filled bar (kept in sync with render()).
+_LABEL_WIDTH = 14
+_BAR_WIDTH = 14
 
 
 class HoverSlider(Static, can_focus=True):
@@ -81,9 +88,22 @@ class HoverSlider(Static, can_focus=True):
         self._change(-1.0, event.shift)
         event.stop()
 
+    def _bar_x0(self) -> int:
+        """Column of the bar's opening bracket."""
+        return _LABEL_WIDTH
+
+    def _bar_x1(self) -> int:
+        """Column just past the bar's closing bracket."""
+        return _LABEL_WIDTH + _BAR_WIDTH + 2
+
     def on_mouse_down(self, event: events.MouseDown) -> None:
         self._dragging = True
         self._last_y = event.y
+        # Clicking on (or right of) the bar jumps the value there; clicks on
+        # the label leave it untouched.
+        if event.x >= self._bar_x0():
+            frac = float(np.clip((event.x - self._bar_x0()) / (_BAR_WIDTH + 2), 0.0, 1.0))
+            self.set_value(self.min + frac * (self.max - self.min), notify=True)
         self.focus()
         self.capture_mouse()
         event.stop()
@@ -118,7 +138,7 @@ class HoverSlider(Static, can_focus=True):
             event.stop()
 
     def render(self) -> Text:
-        bar = _bar(self.value, self.min, self.max, width=14)
+        bar = _bar(self.value, self.min, self.max, width=_BAR_WIDTH)
         value = (
             self.zero_label
             if self.zero_label and self.value == self.min
@@ -126,7 +146,7 @@ class HoverSlider(Static, can_focus=True):
         )
         if self.units and value != self.zero_label:
             value = f"{value} {self.units}"
-        return Text(f"{self.label_text:<14}{bar} {value}")
+        return Text(f"{self.label_text:<{_LABEL_WIDTH}}{bar} {value}")
 
 
 def _bar(value: float, min: float, max: float, width: int = 14) -> str:
@@ -165,7 +185,7 @@ class PianoRoll(Static):
         self.bpm = bpm
         self.transpose = transpose
         self.playhead = None
-        self.refresh()
+        self.refresh(layout=True)
 
     def set_playhead(self, beat: float | None) -> None:
         self.playhead = beat
@@ -196,8 +216,15 @@ class PianoRoll(Static):
             for note in self.notes:
                 note_midi = note.midi + self.transpose if note.midi is not None else None
                 start = int(pos)
-                if note_midi is not None and int(round(note_midi)) == midi and start < cols:
-                    cells[start] = "■"
+                if note_midi is not None and start < cols:
+                    nearest = int(round(note_midi))
+                    if nearest == midi:
+                        if abs(note_midi - nearest) < 1e-9:
+                            cells[start] = "■"
+                        elif note_midi > nearest:
+                            cells[start] = "▲"
+                        else:
+                            cells[start] = "▼"
                 pos += note.beats
             if self.playhead is not None and 0 <= int(self.playhead) < cols:
                 col = int(self.playhead)
@@ -244,17 +271,21 @@ class MiniWaveform(Static):
     def set_audio(self, audio: np.ndarray | None) -> None:
         self.audio = audio
         self.parts = None
-        self.refresh()
+        self.refresh(layout=True)
 
     def set_parts(self, parts: PatternParts | None, bpm: float) -> None:
         self.parts = parts
         self.bpm = bpm
         if parts is not None:
             self.audio = None
-        self.refresh()
+        self.refresh(layout=True)
 
     def _cols(self) -> int:
-        width = self.size.width
+        # Size to the container so `width: auto` tracks the panel instead of
+        # the widget's own (circular) laid-out width; clamp to a readable
+        # range so very narrow panels clip rather than wrap.
+        parent = cast(Widget | None, self.parent)
+        width = parent.size.width if parent is not None else self.size.width
         return int(max(self.MIN_COLS, min(width - 8, 140)))
 
     def render(self) -> Text:

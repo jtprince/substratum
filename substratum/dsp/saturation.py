@@ -62,6 +62,38 @@ def curve_saturate(signal: np.ndarray, drive: float = 0.5, curve: float = 0.0) -
     return (1.0 - curve) * tanh_out + curve * atan_out
 
 
+def foldback_saturate(signal: np.ndarray, amount: float = 0.0) -> np.ndarray:
+    """Industrial wavefolder.
+
+    Peaks are folded back toward zero instead of clipped, producing a dense,
+    metallic harmonic texture well beyond what tanh/atan saturation can reach.
+    ``amount`` in [0, 1] blends dry/wet; at 0 the signal passes unchanged.
+    Output stays bounded in [-1, 1].
+    """
+    amount = float(np.clip(amount, 0.0, 1.0))
+    if amount <= 0.0:
+        return signal
+    gain = 1.0 + 7.0 * amount
+    folded = 1.0 - np.abs((gain * signal) % 4.0 - 2.0)
+    return (1.0 - amount) * signal + amount * folded
+
+
+def bitcrush(signal: np.ndarray, amount: float = 0.0) -> np.ndarray:
+    """Reduce the effective bit depth (staircase quantization).
+
+    ``amount`` in [0, 1] both deepens the crush (16 -> 2 bits) and mixes
+    dry/wet. At 0 the signal passes unchanged; at 1 the waveform is a
+    coarse staircase, the classic harsh "digital" industrial texture.
+    """
+    amount = float(np.clip(amount, 0.0, 1.0))
+    if amount <= 0.0:
+        return signal
+    bits = 2.0 + 14.0 * (1.0 - amount)
+    levels = 2.0**bits
+    quantized = np.clip(np.round(signal * levels) / levels, -1.0, 1.0)
+    return (1.0 - amount) * signal + amount * quantized
+
+
 def saturate(
     signal: np.ndarray,
     drive: float = 0.5,

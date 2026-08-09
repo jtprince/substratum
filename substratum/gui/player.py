@@ -64,28 +64,36 @@ class LoopPlayer:
                     dtype="float32",
                     callback=self._callback,
                 )
-            if not self._running:
-                self._stream.start()
-                self._running = True
+            stream = self._stream
+            should_start = not self._running
+            self._running = True
+        # Stream calls are blocking (they wait for the callback to return), so
+        # they must run outside the lock or they deadlock with the callback,
+        # which needs the same lock to read the buffer.
+        if should_start:
+            stream.start()
 
     def stop(self) -> None:
         """Pause the stream, keeping the current buffer and position."""
         with self._lock:
-            if self._stream is not None and self._running:
-                self._stream.stop()
+            stream = self._stream
+            was_running = self._running
             self._running = False
             self._old = None
             self._fade_elapsed = 0
+        if stream is not None and was_running:
+            stream.stop()
 
     def close(self) -> None:
         """Release the stream and free the buffer."""
         with self._lock:
-            if self._stream is not None:
-                self._stream.close()
+            stream = self._stream
             self._stream = None
             self._buffer = None
             self._old = None
             self._running = False
+        if stream is not None:
+            stream.close()
 
     # -- internals ----------------------------------------------------------
 

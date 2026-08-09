@@ -47,6 +47,26 @@ PRESETS: dict[str, BassParams] = {
         weight=1.0,
         description="Everything turned up. Designed for subs and headphones.",
     ),
+    "industrial": BassParams(
+        freq=44.0,
+        punch=0.6,
+        drive=0.5,
+        warmth=0.2,
+        weight=0.4,
+        distortion=0.65,
+        crush=0.35,
+        description="Metallic wavefolder grit with a bit-crushed edge.",
+    ),
+    "grind": BassParams(
+        freq=46.0,
+        punch=0.8,
+        drive=0.7,
+        warmth=0.1,
+        weight=0.3,
+        distortion=1.0,
+        crush=0.7,
+        description="Maximum industrial: full foldback and heavy crush.",
+    ),
 }
 
 

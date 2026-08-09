@@ -2,7 +2,9 @@ import numpy as np
 
 from substratum.dsp.saturation import (
     atan_saturate,
+    bitcrush,
     downsample,
+    foldback_saturate,
     oversample,
     saturate,
     tanh_saturate,
@@ -58,3 +60,37 @@ def test_tanh_generates_harmonics():
     x = np.sin(2 * np.pi * 40 * np.arange(4800) / 48000)
     y = saturate(x, drive=1.0)
     assert not np.allclose(y, x)
+
+
+def test_foldback_zero_amount_is_passthrough():
+    x = np.linspace(-1, 1, 100)
+    assert np.allclose(foldback_saturate(x, 0.0), x)
+
+
+def test_foldback_is_bounded():
+    x = np.linspace(-5, 5, 1000)
+    y = foldback_saturate(x, 1.0)
+    assert np.all(np.abs(y) <= 1.0)
+
+
+def test_foldback_generates_harmonics():
+    x = np.sin(2 * np.pi * 40 * np.arange(4800) / 48000)
+    y = foldback_saturate(x, 1.0)
+    assert not np.allclose(y, x)
+
+
+def test_bitcrush_zero_amount_is_passthrough():
+    x = np.linspace(-1, 1, 100)
+    assert np.allclose(bitcrush(x, 0.0), x)
+
+
+def test_bitcrush_is_bounded():
+    x = np.linspace(-5, 5, 1000)
+    y = bitcrush(x, 1.0)
+    assert np.all(np.abs(y) <= 1.0)
+
+
+def test_bitcrush_quantizes_to_few_levels():
+    x = np.linspace(-1, 1, 1000)
+    y = bitcrush(x, 1.0)
+    assert len(np.unique(np.round(y, 6))) <= 9

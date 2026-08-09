@@ -130,6 +130,18 @@ def test_snap_adds_transient():
     assert not np.allclose(quiet, clicked, atol=0.01)
 
 
+def test_distortion_changes_output():
+    plain = render(BassParams(freq=40, drive=0.3))
+    gritty = render(BassParams(freq=40, drive=0.3, distortion=1.0))
+    assert not np.allclose(plain, gritty, atol=0.01)
+
+
+def test_crush_changes_output():
+    plain = render(BassParams(freq=40, drive=0.3))
+    crushed = render(BassParams(freq=40, drive=0.3, crush=1.0))
+    assert not np.allclose(plain, crushed, atol=0.01)
+
+
 def test_validation_clamps_new_params():
     p = BassParams(
         decay=99,
@@ -142,6 +154,8 @@ def test_validation_clamps_new_params():
         curve=9,
         glide=9,
         makeup_db=99,
+        distortion=9,
+        crush=-9,
     ).validated()
     assert p.decay <= 5.0
     assert p.attack <= 0.5
@@ -151,6 +165,8 @@ def test_validation_clamps_new_params():
     assert p.width <= 1.0
     assert p.makeup_db <= 12.0
     assert p.curve <= 1.0
+    assert p.distortion <= 1.0
+    assert p.crush >= 0.0
 
 
 def test_decompose_voice_layers_sum_to_center():
